@@ -17,7 +17,7 @@ def main():
     glutMainLoop()
 
 def init():
-    glClearColor(0.0, 0.0, 0.5, 1.0) # クリア色の指定
+    glClearColor(0.5, 0.5, 0.5, 1.0) # クリア色の指定
 
 def display():
     """描画処理"""

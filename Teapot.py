@@ -1,6 +1,4 @@
 #coding:utf-8
-
-
 import sys
 from OpenGL.GL import *
 from OpenGL.GLU import *
