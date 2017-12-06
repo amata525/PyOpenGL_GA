@@ -1,2 +1,0 @@
-# PyOpenGL_GA
-PyOpenGLでお手玉の遺伝的アルゴリズムを作りたい
