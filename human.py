@@ -5,6 +5,7 @@ from OpenGL.GLUT import *
 from myInitialize import *
 from myObjects import *
 from math import *
+from numpy.random import *
 import sys
 
 window = None
@@ -26,7 +27,8 @@ lHandPosition = [0.0, 0.0, 0.0] # 左手の位置
 # 角度の限界
 HAND_ANGLE_LIMIT = 60.0
 """あとで消す"""
-tmp_angle_change = 1.0
+tmp_rangle_change = 8.0
+tmp_langle_change = 8.0
 
 # 人の座標
 px = 0.0
@@ -176,6 +178,7 @@ def idle():
     global rAngle, lAngle
     global bpx, bpy, bpz
     global bvx, bvy, bvz
+    global tmp_langle_change, tmp_rangle_change
 
 
     frame = frame + 1
@@ -197,9 +200,18 @@ def idle():
         throwball(0, 0.0, 100.0, 0.1)
 
     # 手の角度を往復させる
-    rAngle = rAngle + 1.0
-    lAngle = lAngle + 1.0
-    #rxAngle = rxAngle + 1.0
+    rAngle = rAngle + tmp_rangle_change * rand() * 2 - tmp_rangle_change
+    lAngle = lAngle + tmp_langle_change * rand() * 2 - tmp_langle_change
+
+    if rAngle >= HAND_ANGLE_LIMIT:
+        rAngle = HAND_ANGLE_LIMIT
+    elif rAngle <= -HAND_ANGLE_LIMIT:
+        rAngle = -HAND_ANGLE_LIMIT
+
+    if lAngle >= HAND_ANGLE_LIMIT+90.0:
+        lAngle = HAND_ANGLE_LIMIT+90.0
+    elif lAngle <= -HAND_ANGLE_LIMIT+90.0:
+        lAngle = -HAND_ANGLE_LIMIT+90.0
 
     glutPostRedisplay()  # 再描画
 
