@@ -2,11 +2,13 @@
 from OpenGL.GL import *
 from OpenGL.GLU import *
 from OpenGL.GLUT import *
-from myInitialize import *
-from myObjects import *
 from math import *
 from numpy.random import *
 import sys
+
+from myInitialize import *
+from myObjects import *
+from decision import *
 
 window = None
 
@@ -33,18 +35,19 @@ tmp_langle_change = 8.0
 # 人の座標
 px = 0.0
 pz = 0.0
-r = 30.0
 py = 1.6
+r = 30.0
 
-# ボールの座標
-bpx = [1.0, 0.0]
-bpy = [3.0, 0.0]
-bpz = [0.0, 0.0]
+# ボールの座標 (x,y,z), (左手(-1)or右手(1)に掴まれているか)
+ballPosition = [[0.3, 3.0, 0.4, 0.0],
+                [0.0, 0.0, 0.0, 0.0],
+                [1.0, 1.0, 1.0, 0.0]]
 
-# ボールの速度
-bvx = [0.0, 0.0]
-bvy = [0.0, 0.0]
-bvz = [0.0, 0.0]
+
+ballVelocity = [[0.0, 0.0, 0.0],
+                [0.0, 0.0, 0.0]]
+
+BALL_SIZE = 0.1 # ボールの半径
 
 g = 9.8 # 重力定数
 
@@ -75,6 +78,8 @@ def main():
 """ 描画更新 """
 def display():
 
+    global rHandPosition, lHandPosition
+
     # 画面クリア
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
 
@@ -93,15 +98,19 @@ def display():
     myGround(0.0)
 
     # ボール生成
-    glTranslated(bpx[0], bpy[0], bpz[0])
+    glTranslated(ballPosition[0][0], ballPosition[0][1], ballPosition[0][2])
     glMaterialfv(GL_FRONT, GL_DIFFUSE, [0.2, 0.2, 0.8, 1.0]);
-    glutSolidSphere(0.1, 20, 20)
+    glutSolidSphere(BALL_SIZE, 20, 20)
 
     glLoadIdentity()
-    glTranslated(bpx[1], bpy[1], bpz[1])
+    glTranslated(ballPosition[1][0], ballPosition[1][1], ballPosition[1][2])
     glMaterialfv(GL_FRONT, GL_DIFFUSE, [0.2, 0.8, 0.2, 1.0]);
-    glutSolidSphere(0.01, 20, 20)
+    glutSolidSphere(BALL_SIZE, 20, 20)
 
+    glLoadIdentity()
+    glTranslated(ballPosition[2][0], ballPosition[2][1], ballPosition[2][2])
+    glMaterialfv(GL_FRONT, GL_DIFFUSE, [0.2, 0.8, 0.8, 1.0]);
+    glutSolidSphere(BALL_SIZE, 20, 20)
 
     """人モデルの描画"""
     glLoadIdentity()
@@ -144,28 +153,6 @@ def display():
     glPopMatrix()
 
 
-    """手座標の描画"""
-    # マテリアルの設定
-    glMaterialfv(GL_FRONT, GL_DIFFUSE, [0.2, 0.8, 0.2, 1.0]);
-
-
-
-    # 左手の座標に球体を設置してみる
-    glLoadIdentity()
-    lHandPosition = [0.3, 0.95, 0.0]
-    lHandPosition[1] += ARM_LENGTH*sin(radians(lAngle-90))
-    lHandPosition[2] += ARM_LENGTH*sin(radians(lAngle))
-    glTranslated(lHandPosition[0], lHandPosition[1], lHandPosition[2])
-    glutSolidSphere(0.1, 20, 20)
-
-    # 左手の座標に球体を設置してみる
-    glLoadIdentity()
-    rHandPosition = [-0.3, 0.95, 0.0]
-    rHandPosition[0] += ARM_LENGTH*sin(radians(-rAngle))
-    rHandPosition[2] += ARM_LENGTH*cos(radians(rAngle))
-    glTranslated(rHandPosition[0], rHandPosition[1], rHandPosition[2])
-    glutSolidSphere(0.1, 20, 20)
-
 
     # 描画反映
     glFlush()
@@ -185,23 +172,31 @@ def idle():
     time = time + dt
 
     # 速度変更処理
-    bvy[0] = bvy[0] - dt * g #　自由落下
+    ballVelocity[0][1] = ballVelocity[0][1] - dt * g # 自由落下
 
     # 変位変更処理
-    bpx[0] = bpx[0] + bvx[0] * dt
-    bpy[0] = bpy[0] + bvy[0] * dt
-    bpz[0] = bpz[0] + bvz[0] * dt
+    for i in range(2):
+        for j in range(3):
+            ballPosition[i][j] = ballPosition[i][j] + ballVelocity[i][j] * dt
 
-    if bpy[0] < 0.0:
-        bvy[0] = 0.0
-        bpy[0] = 0.0
+    if ballPosition[0][1] < 0.0:
+        ballVelocity[0][1] = 0.0
+        ballPosition[0][1] = 0.0
 
-    if frame == 300:
-        throwball(0, 0.0, 100.0, 0.1)
 
     # 手の角度を往復させる
     rAngle = rAngle + tmp_rangle_change * rand() * 2 - tmp_rangle_change
     lAngle = lAngle + tmp_langle_change * rand() * 2 - tmp_langle_change
+
+    # 手首座標の更新
+    lHandPosition = [0.3, 0.95, 0.0]
+    lHandPosition[1] += ARM_LENGTH*sin(radians(lAngle-90))
+    lHandPosition[2] += ARM_LENGTH*sin(radians(lAngle))
+
+    rHandPosition = [-0.3, 0.95, 0.0]
+    rHandPosition[0] += ARM_LENGTH*sin(radians(-rAngle))
+    rHandPosition[2] += ARM_LENGTH*cos(radians(rAngle))
+
 
     if rAngle >= HAND_ANGLE_LIMIT:
         rAngle = HAND_ANGLE_LIMIT
@@ -212,6 +207,11 @@ def idle():
         lAngle = HAND_ANGLE_LIMIT+90.0
     elif lAngle <= -HAND_ANGLE_LIMIT+90.0:
         lAngle = -HAND_ANGLE_LIMIT+90.0
+
+    # 手と球の衝突判定
+    lCheck = inSphere(lHandPosition[0], lHandPosition[1], lHandPosition[2], BALL_SIZE,
+                      ballPosition[0][0], ballPosition[0][1], ballPosition[0][2], BALL_SIZE)
+    print lCheck
 
     glutPostRedisplay()  # 再描画
 
