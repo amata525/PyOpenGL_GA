@@ -25,12 +25,15 @@ rAngle = 0.0 # 右肘関節y方向の角度
 
 rHandPosition = [0.0, 0.0, 0.0] # 右手の位置
 lHandPosition = [0.0, 0.0, 0.0] # 左手の位置
+rHandBall = -1 #右手が持っているボールの番号
+lHandBall = -1 #左手が持っているボールの番号
 
 # 角度の限界
 HAND_ANGLE_LIMIT = 60.0
 """あとで消す"""
 tmp_rangle_change = 8.0
 tmp_langle_change = 8.0
+tmp_throw = 0
 
 # 人の座標
 px = 0.0
@@ -38,21 +41,24 @@ pz = 0.0
 py = 1.6
 r = 30.0
 
-# ボールの座標 (x,y,z), (左手(-1)or右手(1)に掴まれているか)
-ballPosition = [[0.3, 3.0, 0.4, 0.0],
-                [0.0, 0.0, 0.0, 0.0],
-                [1.0, 1.0, 1.0, 0.0]]
+# ボールの座標 (x,y,z)
+ballPosition = [[0.3, 0.95, 0.4],
+                [-0.3, 2.0, 0.4],
+                [-0.3, 0.95, 0.4]]
 
+# 0でないならキャッチされない
+ballRelease = [0, 0, 0]
 
 ballVelocity = [[0.0, 0.0, 0.0],
+                [0.0, 0.0, 0.0],
                 [0.0, 0.0, 0.0]]
 
 BALL_SIZE = 0.1 # ボールの半径
+BALL_NUM = 3    # ボールの数
 
 g = 9.8 # 重力定数
 
 key_test = [0.0, 0.0, 0.0, 0.0] # キー入力テスト
-
 
 """ メイン処理 """
 def main():
@@ -162,28 +168,15 @@ def idle():
     """アイドル時に呼ばれるコールバック関数"""
     global frame
     global time
-    global rAngle, lAngle
-    global bpx, bpy, bpz
-    global bvx, bvy, bvz
-    global tmp_langle_change, tmp_rangle_change
+    global lAngle, rAngle
+    global lHandBall, rHandBall
+    global tmp_langle_change, tmp_rangle_change, tmp_throw
 
 
     frame = frame + 1
     time = time + dt
 
-    # 速度変更処理
-    ballVelocity[0][1] = ballVelocity[0][1] - dt * g # 自由落下
-
-    # 変位変更処理
-    for i in range(2):
-        for j in range(3):
-            ballPosition[i][j] = ballPosition[i][j] + ballVelocity[i][j] * dt
-
-    if ballPosition[0][1] < 0.0:
-        ballVelocity[0][1] = 0.0
-        ballPosition[0][1] = 0.0
-
-
+    # 手関連
     # 手の角度を往復させる
     rAngle = rAngle + tmp_rangle_change * rand() * 2 - tmp_rangle_change
     lAngle = lAngle + tmp_langle_change * rand() * 2 - tmp_langle_change
@@ -209,9 +202,66 @@ def idle():
         lAngle = -HAND_ANGLE_LIMIT+90.0
 
     # 手と球の衝突判定
-    lCheck = inSphere(lHandPosition[0], lHandPosition[1], lHandPosition[2], BALL_SIZE,
-                      ballPosition[0][0], ballPosition[0][1], ballPosition[0][2], BALL_SIZE)
-    print lCheck
+    for i in range(BALL_NUM):
+        lCheck = inSphere(lHandPosition[0], lHandPosition[1], lHandPosition[2], BALL_SIZE,
+                          ballPosition[i][0], ballPosition[i][1], ballPosition[i][2], BALL_SIZE)
+
+        rCheck = inSphere(rHandPosition[0], rHandPosition[1], rHandPosition[2], BALL_SIZE,
+                          ballPosition[i][0], ballPosition[i][1], ballPosition[i][2], BALL_SIZE)
+
+        # 左手と衝突
+        if lCheck and lHandBall == -1 and ballRelease[i] == 0:
+            lHandBall = i;
+            for j in range(3):
+                ballVelocity[i][j] = 0.0
+                tmp_throw = 60  # あとで消す
+
+        # 右手と衝突
+        if rCheck and rHandBall == -1 and ballRelease[i] == 0:
+            rHandBall = i;
+            for j in range(3):
+                ballVelocity[i][j] = 0.0
+
+    # ボール関連
+    # 速度変更処理
+    for i in range(BALL_NUM):
+        ballVelocity[i][1] = ballVelocity[i][1] - dt * g # 自由落下
+
+
+    # 変位変更処理
+    for i in range(BALL_NUM):
+        for j in range(3):
+            ballPosition[i][j] = ballPosition[i][j] + ballVelocity[i][j] * dt
+
+    # 地面衝突処理
+    for i in range(BALL_NUM):
+        if ballPosition[i][1] < 0.0:
+            ballVelocity[i][1] = 0.0
+            ballPosition[i][1] = 0.0
+
+    # 手にあるボールは手に追従させる
+    if lHandBall != -1:
+        for j in range(3):
+            ballPosition[lHandBall][j] = lHandPosition[j]
+            tmp_throw -= 1
+
+    if rHandBall != -1:
+        for j in range(3):
+            ballPosition[rHandBall][j] = rHandPosition[j]
+
+    # 投げたボールをすぐキャッチしないようにカウント
+    for i in range(BALL_NUM):
+        if ballRelease[i] > 0:
+            ballRelease[i] -= 1
+
+    """あとで消す 投げのテスト"""
+    if tmp_throw <= -1:
+        ballRelease[0] = 10
+        lHandBall = -1
+        throwball(0, 0.0, 3.0, 0.0)
+        tmp_throw = 0
+
+
 
     glutPostRedisplay()  # 再描画
 
@@ -247,11 +297,10 @@ def keyboard(key, x, y):
 # ボール射出関数
 # どのボールを(no)どの方向へどれくらいの速度で投げるか(vx, vy, vz)
 def throwball(no, vx, vy, vz):
-    global bvx, bvy, bvz
 
-    bvx[no] = vx
-    bvy[no] = vy
-    bvz[no] = vz
+    ballVelocity[no][0] = vx
+    ballVelocity[no][1] = vy
+    ballVelocity[no][2] = vz
 
 
 
