@@ -53,8 +53,8 @@ BALL_SIZE = 0.1 # ボールの半径
 BALL_NUM = 3    # ボールの数
 
 GENE_NUM = 20 # 遺伝子数
-GENE_LEN = 100 # 単位遺伝子長
-POWER_LEN = 10 # 単位射出遺伝子長
+GENE_LEN = 50 # 単位遺伝子長
+POWER_LEN = 5 # 単位射出遺伝子長
 THROW_STEP = 10 # 射出間隔
 
 armAngleGene = np.zeros((GENE_NUM, 2, GENE_LEN))   # 腕の角度遺伝子
@@ -78,7 +78,7 @@ def main():
 
     glutInitWindowSize(600, 600)
     glutInitWindowPosition(100, 100)
-    window = glutCreateWindow("Human Test")
+    window = glutCreateWindow("Juggling")
 
     glutDisplayFunc(display)
     glutReshapeFunc(reshape)
@@ -309,12 +309,14 @@ def idle():
             nowGeneNo = 0
             geneCross()
 
-            if generation == 501: # 501世代で終了
+            if generation == 501: # 500世代で終了
                 glutDestroyWindow(window)
                 sys.exit()
 
     else:
-        glutPostRedisplay()  # 再描画
+        if (generation % 100 == 0 or generation == 1) and nowGeneNo == 0:
+            glutPostRedisplay()  # 再描画
+
         frame = frame + 1
 
 
@@ -417,7 +419,7 @@ def geneCross():
     # 評価値とその合計を計算
     geneValue = np.zeros(GENE_NUM)
     for i in range(GENE_NUM):
-        geneValue[i] = frameNum[i] * catchNum[i]
+        geneValue[i] = frameNum[i]# * catchNum[i]
 
     sumValue = sum(geneValue)
 
@@ -431,11 +433,11 @@ def geneCross():
     nextRightPowerGene[0][0] = rightPowerGene[mostValueNo][0]
     nextRightPowerGene[0][1] = rightPowerGene[mostValueNo][1]
 
-    # 50世代毎に最も良い個体を記録
-    if generation % 50 == 0:
-        np.savetxt(("armMVP" + str(generation/50) + ".csv"), nextArmAngleGene[0], delimiter=",")
-        np.savetxt(("leftMVP" + str(generation/50) + ".csv"), nextLeftPowerGene[0], delimiter=",")
-        np.savetxt(("rightMVP" + str(generation/50) + ".csv"), nextRightPowerGene[0], delimiter=",")
+    # 100世代毎に最も良い個体を記録
+    if generation % 100 == 0:
+        np.savetxt(("armMVP" + str(generation/100) + ".csv"), nextArmAngleGene[0], delimiter=",")
+        np.savetxt(("leftMVP" + str(generation/100) + ".csv"), nextLeftPowerGene[0], delimiter=",")
+        np.savetxt(("rightMVP" + str(generation/100) + ".csv"), nextRightPowerGene[0], delimiter=",")
 
     # ルーレット選択
     for i in range(1, GENE_NUM):
@@ -477,26 +479,34 @@ def mutation():
     global armAngleGene
     global leftPowerGene, rightPowerGene
 
-    mutationRate = 0.2
-    changeRate = 0.2
+    mutationRate = 0.3
+    changeRate = 0.1
+
+    minGenePoint = nowGeneLength-200
+    minPowerPoint = nowPowerLength-20
+
+    if minGenePoint < 0:
+        minGenePoint = 0
+    if minPowerPoint < 0:
+        minPowerPoint = 0
 
     for i in range(1, GENE_NUM):
         mu = rand()
         # 突然変異発生
         if mu <= mutationRate:
-            for j in range(nowGeneLength):
+            for j in range(minGenePoint, nowGeneLength):
                 ch = rand()
                 if ch <= changeRate:
                     armAngleGene[i][0][j] = rand() * 8.0 - 4.0
                     armAngleGene[i][1][j] = rand() * 8.0 - 4.0
 
-            for j in range(nowPowerLength):
+            for j in range(minPowerPoint, nowPowerLength):
                 ch = rand()
                 if ch <= changeRate:
                     leftPowerGene[i][0][j] = rand() * (-1.0)
                     leftPowerGene[i][1][j] = rand() * 3.0 + 4.0
 
-            for j in range(nowPowerLength):
+            for j in range(minPowerPoint, nowPowerLength):
                 ch = rand()
                 if ch <= changeRate:
                     rightPowerGene[i][0][j] = rand() * 1.0
