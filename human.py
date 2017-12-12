@@ -42,6 +42,8 @@ ballPosition = [[0.3, 0.95, 0.4],
 
 # 0でないならキャッチされない
 ballRelease = [0, 0, 0]
+# 左右交互にキャッチするためのフラグ
+prevIsLeft = [0, 1, 1]
 
 ballVelocity = [[0.0, 0.0, 0.0],
                 [0.0, 0.0, 0.0],
@@ -188,6 +190,7 @@ def idle():
     global ballPosition, ballVelocity, ballRelease
     global nowGeneNo
     global generation
+    global prevIsLeft
 
     end_flg = False
 
@@ -229,16 +232,18 @@ def idle():
                               ballPosition[i][0], ballPosition[i][1], ballPosition[i][2], BALL_SIZE)
 
             # 左手と衝突
-            if lCheck and lHandBall == -1 and ballRelease[i] == 0:
+            if lCheck and lHandBall == -1 and ballRelease[i] == 0 and prevIsLeft[i] == 0:
                 lHandBall = i;
                 catchNum[nowGeneNo] += 1
+                prevIsLeft[i] = 1
                 for j in range(3):
                     ballVelocity[i][j] = 0.0
 
             # 右手と衝突
-            if rCheck and rHandBall == -1 and ballRelease[i] == 0:
+            if rCheck and rHandBall == -1 and ballRelease[i] == 0 and prevIsLeft[i] == 1:
                 rHandBall = i;
                 catchNum[nowGeneNo] += 1
+                prevIsLeft[i] = 0
                 for j in range(3):
                     ballVelocity[i][j] = 0.0
 
@@ -303,9 +308,16 @@ def idle():
             generation += 1
             nowGeneNo = 0
             geneCross()
+
+            if generation == 501: # 501世代で終了
+                glutDestroyWindow(window)
+                sys.exit()
+
     else:
         glutPostRedisplay()  # 再描画
         frame = frame + 1
+
+
 
 
 """遺伝子操作関連"""
@@ -321,9 +333,9 @@ def geneInit():
 
         for j in range(POWER_LEN):
             leftPowerGene[i][0][j] = rand() * (-1.0)
-            leftPowerGene[i][1][j] = rand() * 7.0 + 3.0
+            leftPowerGene[i][1][j] = rand() * 3.0 + 4.0
             rightPowerGene[i][0][j] = rand() * 1.0
-            rightPowerGene[i][1][j] = rand() * 3.0 + 2.0
+            rightPowerGene[i][1][j] = rand() * 3.0 + 4.0
 
 # 腕角度遺伝子の追加
 def appendArmGene():
@@ -351,9 +363,9 @@ def appendPowerGene():
     for i in range(GENE_NUM):
         for j in range(POWER_LEN):
             gl[i][0][j] = rand() * (-1.0)
-            gl[i][1][j] = rand() * 7.0 + 3.0
+            gl[i][1][j] = rand() * 3.0 + 4.0
             gr[i][0][j] = rand() * 1.0
-            gr[i][1][j] = rand() * 3.0 + 2.0
+            gr[i][1][j] = rand() * 3.0 + 4.0
 
     leftPowerGene = np.append(leftPowerGene, gl, axis=2)
     rightPowerGene = np.append(rightPowerGene, gr, axis=2)
@@ -419,6 +431,12 @@ def geneCross():
     nextRightPowerGene[0][0] = rightPowerGene[mostValueNo][0]
     nextRightPowerGene[0][1] = rightPowerGene[mostValueNo][1]
 
+    # 50世代毎に最も良い個体を記録
+    if generation % 50 == 0:
+        np.savetxt(("armMVP" + str(generation/50) + ".csv"), nextArmAngleGene[0], delimiter=",")
+        np.savetxt(("leftMVP" + str(generation/50) + ".csv"), nextLeftPowerGene[0], delimiter=",")
+        np.savetxt(("rightMVP" + str(generation/50) + ".csv"), nextRightPowerGene[0], delimiter=",")
+
     # ルーレット選択
     for i in range(1, GENE_NUM):
         parents = geneSelect(geneValue, sumValue)
@@ -459,10 +477,10 @@ def mutation():
     global armAngleGene
     global leftPowerGene, rightPowerGene
 
-    mutationRate = 0.05
+    mutationRate = 0.2
     changeRate = 0.2
 
-    for i in range(GENE_NUM):
+    for i in range(1, GENE_NUM):
         mu = rand()
         # 突然変異発生
         if mu <= mutationRate:
@@ -476,13 +494,13 @@ def mutation():
                 ch = rand()
                 if ch <= changeRate:
                     leftPowerGene[i][0][j] = rand() * (-1.0)
-                    leftPowerGene[i][1][j] = rand() * 7.0 + 3.0
+                    leftPowerGene[i][1][j] = rand() * 3.0 + 4.0
 
             for j in range(nowPowerLength):
                 ch = rand()
                 if ch <= changeRate:
                     rightPowerGene[i][0][j] = rand() * 1.0
-                    rightPowerGene[i][1][j] = rand() * 3.0 + 2.0
+                    rightPowerGene[i][1][j] = rand() * 3.0 + 4.0
 
 
 
@@ -492,6 +510,9 @@ def keyboard(key, x, y):
     if key == "\033": # ESC
         glutDestroyWindow(window)
         sys.exit()
+
+    if key == GLUT_KEY_UP:
+        wglSwapIntervalEXT(0);
 
 
 """ モーション関連 """
@@ -509,6 +530,7 @@ def humanInit():
     global lAngle, rAngle
     global lHandBall, rHandBall
     global ballPosition, ballVelocity, ballRelease
+    global prevIsLeft
 
     frame = 0    # 経過フレーム
 
@@ -527,6 +549,9 @@ def humanInit():
 
     # 0でないならキャッチされない
     ballRelease = [0, 0, 0]
+
+    # 交互にキャッチするためのフラグ
+    prevIsLeft = [0, 1, 1]
 
     # ボールの速度
     ballVelocity = [[0.0, 0.0, 0.0],

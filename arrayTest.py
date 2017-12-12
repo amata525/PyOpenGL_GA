@@ -70,9 +70,11 @@ if __name__ == '__main__':
 
     # print armAngleGene
 
-    print geneSelect([30, 40, 50, 60])
+    print range(1, 8)
     print randint(0, 2, 10)
 
     data = np.zeros((3, 3, 3))
 
-    np.savetxt("test.csv", data[1], delimiter=",")
+    index = 1
+
+    np.savetxt(("test" + str(index) + ".csv"), data[1], delimiter=",")
